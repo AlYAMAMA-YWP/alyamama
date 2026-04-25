@@ -42,6 +42,7 @@ let session = {
   userId: null,
   selectedProjectId: "sawari",
   pendingLocation: null,
+  expandedMapKey: null,
   filters: {
     projectId: "all",
     date: todayKey(),
@@ -345,20 +346,36 @@ function mapsSearchUrl(query) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-function renderGoogleMap(location, title, query = "") {
+function renderGoogleMap(location, title, query = "", mapKey = "") {
   if (!location) {
     return `<div class="empty-state">لم يتم تحديد الموقع</div>`;
   }
+
   const src = query ? mapsEmbedQueryUrl(query) : mapsEmbedUrl(location);
+  const isExpanded = session.expandedMapKey === mapKey;
 
   return `
-    <iframe
-      class="google-map"
-      title="${escapeHtml(title)}"
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-      src="${src}"
-    ></iframe>
+    <div class="card project-card" style="margin-top:14px">
+      <div class="actions">
+        <button class="btn secondary" type="button" onclick="toggleMap('${escapeHtml(mapKey)}')">
+          ${isExpanded ? "إخفاء الخريطة" : "عرض الخريطة داخل التطبيق"}
+        </button>
+        <a class="btn secondary" href="${query ? mapsSearchUrl(query) : mapsUrl(location)}" target="_blank" rel="noreferrer">
+          فتح خرائط جوجل
+        </a>
+      </div>
+      ${
+        isExpanded
+          ? `<iframe
+              class="google-map"
+              title="${escapeHtml(title)}"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              src="${src}"
+            ></iframe>`
+          : `<div class="notice">الخريطة جاهزة للعرض من داخل التطبيق عند الحاجة.</div>`
+      }
+    </div>
   `;
 }
 
@@ -737,6 +754,7 @@ function renderLocationStep() {
         mapLocation,
         title,
         location ? "" : project?.mapQuery || `${project?.district || ""} جدة`,
+        `location-${pending.action}-${project?.id || "project"}`,
       )}
 
       <div class="actions">
@@ -961,7 +979,12 @@ function renderProjectSettings(project) {
           <input id="project-${project.id}-lng" class="input" inputmode="decimal" value="${escapeHtml(project.lng)}" required />
         </label>
       </div>
-      ${renderGoogleMap(project, project.name, project.mapQuery || `${project.district} جدة`)}
+      ${renderGoogleMap(
+        project,
+        project.name,
+        project.mapQuery || `${project.district} جدة`,
+        `project-${project.id}`,
+      )}
       <div class="actions">
         <button class="btn green" type="submit">حفظ الإعدادات</button>
         <button class="btn secondary" type="button" onclick="startProjectLocationFlow('${project.id}')">تحديد على الخريطة</button>
@@ -1260,6 +1283,7 @@ function logout() {
 
 function selectProject(projectId) {
   session.selectedProjectId = projectId;
+  session.expandedMapKey = null;
   render();
 }
 
@@ -1289,6 +1313,12 @@ function startProjectLocationFlow(projectId) {
 
 function cancelLocationFlow() {
   session.pendingLocation = null;
+  session.expandedMapKey = null;
+  render();
+}
+
+function toggleMap(mapKey) {
+  session.expandedMapKey = session.expandedMapKey === mapKey ? null : mapKey;
   render();
 }
 
