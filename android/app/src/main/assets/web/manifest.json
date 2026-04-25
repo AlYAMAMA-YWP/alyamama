@@ -1,0 +1,34 @@
+{
+  "name": "ALYAMAMA - حضور المشاريع",
+  "short_name": "حضور ALYAMAMA",
+  "description": "نظام حضور وانصراف ميداني لمشروع الصواري ومشروع الياقوت في شمال جدة.",
+  "lang": "ar-SA",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#06135c",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "تسجيل حضور",
+      "short_name": "حضور",
+      "url": "./index.html"
+    },
+    {
+      "name": "لوحة الإدارة",
+      "short_name": "الإدارة",
+      "url": "./index.html"
+    }
+  ]
+}
