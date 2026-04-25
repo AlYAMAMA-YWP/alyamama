@@ -18,7 +18,7 @@ python -m http.server 8765
 ثم افتح:
 
 ```text
-http://127.0.0.1:8765
+http://127.0.0.1:8765/alyamama/
 ```
 
 ## دخول الإدارة

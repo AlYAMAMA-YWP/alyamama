@@ -16,6 +16,24 @@ const statusClasses = {
   rejected_out_of_range: "red",
 };
 
+const LOCATION_PRESET_VERSION = "jeddah-north-districts-v1";
+const LOCATION_PRESETS = {
+  sawari: {
+    district: "حي الصواري",
+    mapQuery: "حي الصواري جدة",
+    lat: 21.7990244,
+    lng: 39.0986933,
+    radiusMeters: 1800,
+  },
+  yaqout: {
+    district: "حي الياقوت",
+    mapQuery: "حي الياقوت جدة",
+    lat: 21.80124,
+    lng: 39.082392,
+    radiusMeters: 1800,
+  },
+};
+
 let appState = loadState();
 let session = {
   view: "login",
@@ -45,28 +63,31 @@ function seedState() {
       maxGpsAccuracyMeters: 100,
       allowCheckoutOutsideRange: true,
       storeRejectedAttempts: true,
+      locationPresetVersion: LOCATION_PRESET_VERSION,
     },
     projects: [
       {
         id: "sawari",
         name: "مشروع الصواري",
         city: "جدة",
-        district: "شمال جدة",
+        district: LOCATION_PRESETS.sawari.district,
+        mapQuery: LOCATION_PRESETS.sawari.mapQuery,
         startTime: "07:00",
-        radiusMeters: 500,
-        lat: 21.7539,
-        lng: 39.1163,
+        radiusMeters: LOCATION_PRESETS.sawari.radiusMeters,
+        lat: LOCATION_PRESETS.sawari.lat,
+        lng: LOCATION_PRESETS.sawari.lng,
         note: "",
       },
       {
         id: "yaqout",
         name: "مشروع الياقوت",
         city: "جدة",
-        district: "شمال جدة",
+        district: LOCATION_PRESETS.yaqout.district,
+        mapQuery: LOCATION_PRESETS.yaqout.mapQuery,
         startTime: "07:00",
-        radiusMeters: 500,
-        lat: 21.7287,
-        lng: 39.1528,
+        radiusMeters: LOCATION_PRESETS.yaqout.radiusMeters,
+        lat: LOCATION_PRESETS.yaqout.lat,
+        lng: LOCATION_PRESETS.yaqout.lng,
         note: "",
       },
     ],
@@ -138,12 +159,16 @@ function loadState() {
     }
 
     const parsed = JSON.parse(stored);
-    return {
+    const nextState = {
       settings: { ...seeded.settings, ...(parsed.settings || {}) },
       projects: parsed.projects?.length ? parsed.projects : seeded.projects,
       users: parsed.users || [],
       records: parsed.records || [],
     };
+
+    applyLocationPresets(nextState);
+    saveState(nextState);
+    return nextState;
   } catch {
     saveState(seeded);
     return seeded;
@@ -152,6 +177,27 @@ function loadState() {
 
 function saveState(nextState = appState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+}
+
+function applyLocationPresets(state) {
+  if (state.settings.locationPresetVersion === LOCATION_PRESET_VERSION) return;
+
+  state.projects = state.projects.map((project) => {
+    const preset = LOCATION_PRESETS[project.id];
+    if (!preset) return project;
+
+    return {
+      ...project,
+      city: "جدة",
+      district: preset.district,
+      mapQuery: preset.mapQuery,
+      radiusMeters: preset.radiusMeters,
+      lat: preset.lat,
+      lng: preset.lng,
+    };
+  });
+
+  state.settings.locationPresetVersion = LOCATION_PRESET_VERSION;
 }
 
 function cryptoId() {
@@ -284,6 +330,36 @@ function statusClass(record) {
 function mapsUrl(location) {
   if (!location) return "#";
   return `https://www.google.com/maps?q=${Number(location.lat)},${Number(location.lng)}`;
+}
+
+function mapsEmbedUrl(location, zoom = 15) {
+  if (!location) return "";
+  return `https://maps.google.com/maps?q=${Number(location.lat)},${Number(location.lng)}&z=${zoom}&output=embed`;
+}
+
+function mapsEmbedQueryUrl(query, zoom = 15) {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=${zoom}&output=embed`;
+}
+
+function mapsSearchUrl(query) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function renderGoogleMap(location, title, query = "") {
+  if (!location) {
+    return `<div class="empty-state">لم يتم تحديد الموقع</div>`;
+  }
+  const src = query ? mapsEmbedQueryUrl(query) : mapsEmbedUrl(location);
+
+  return `
+    <iframe
+      class="google-map"
+      title="${escapeHtml(title)}"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      src="${src}"
+    ></iframe>
+  `;
 }
 
 function render() {
@@ -630,6 +706,7 @@ function renderLocationStep() {
   const distance = distanceFromProject(project, location);
   const isInside =
     distance === null ? null : distance <= Number(project?.radiusMeters || 0);
+  const mapLocation = location || project;
   const title =
     pending.action === "set-project"
       ? "تحديد موقع المشروع"
@@ -644,22 +721,18 @@ function renderLocationStep() {
         المشروع: <strong>${escapeHtml(project?.name || "-")}</strong>.
       </p>
 
-      <div class="map-box" aria-label="معاينة الخريطة">
-        <div class="range-ring"></div>
-        <div class="project-pin"><span>م</span></div>
-        ${location ? `<div class="map-pin"><span>أ</span></div>` : ""}
-        <div class="map-note">
-          ${
-            location
-              ? `الموقع المختار: ${formatNumber(location.lat, 6)}, ${formatNumber(location.lng, 6)}`
-              : "لم يتم تحديد الموقع"
-          }
-        </div>
-      </div>
+      ${renderGoogleMap(
+        mapLocation,
+        title,
+        location ? "" : project?.mapQuery || `${project?.district || ""} جدة`,
+      )}
 
       <div class="actions">
         <button class="btn green" onclick="captureGpsLocation()">استخدام موقعي الحالي</button>
         <button class="btn secondary" onclick="cancelLocationFlow()">رجوع</button>
+        <a class="btn secondary" href="${mapsSearchUrl(`${project?.name || ""} ${project?.district || ""} جدة`)}" target="_blank" rel="noreferrer">
+          بحث في خرائط جوجل
+        </a>
         ${
           location
             ? `<a class="btn secondary" href="${mapsUrl(location)}" target="_blank" rel="noreferrer">فتح في خرائط جوجل</a>`
@@ -852,6 +925,10 @@ function renderProjectSettings(project) {
           <input id="project-${project.id}-district" class="input" value="${escapeHtml(project.district)}" required />
         </label>
       </div>
+      <label class="field">
+        <span>بحث الخريطة داخل التطبيق</span>
+        <input id="project-${project.id}-mapQuery" class="input" value="${escapeHtml(project.mapQuery || `${project.district} ${project.city}`)}" required />
+      </label>
       <div class="two-col">
         <label class="field">
           <span>وقت بداية الدوام</span>
@@ -872,9 +949,11 @@ function renderProjectSettings(project) {
           <input id="project-${project.id}-lng" class="input" inputmode="decimal" value="${escapeHtml(project.lng)}" required />
         </label>
       </div>
+      ${renderGoogleMap(project, project.name, project.mapQuery || `${project.district} جدة`)}
       <div class="actions">
         <button class="btn green" type="submit">حفظ الإعدادات</button>
         <button class="btn secondary" type="button" onclick="startProjectLocationFlow('${project.id}')">تحديد على الخريطة</button>
+        <a class="btn secondary" href="${mapsSearchUrl(`${project.name} ${project.district} جدة`)}" target="_blank" rel="noreferrer">بحث في خرائط جوجل</a>
         ${
           projectHasLocation(project)
             ? `<a class="btn secondary" href="${mapsUrl(project)}" target="_blank" rel="noreferrer">عرض في خرائط جوجل</a>`
@@ -1403,12 +1482,13 @@ function saveProject(projectId) {
   const name = document.getElementById(`project-${projectId}-name`).value.trim();
   const city = document.getElementById(`project-${projectId}-city`).value.trim();
   const district = document.getElementById(`project-${projectId}-district`).value.trim();
+  const mapQuery = document.getElementById(`project-${projectId}-mapQuery`).value.trim();
   const startTime = document.getElementById(`project-${projectId}-start`).value;
   const radiusMeters = Number(document.getElementById(`project-${projectId}-radius`).value);
   const lat = Number(document.getElementById(`project-${projectId}-lat`).value);
   const lng = Number(document.getElementById(`project-${projectId}-lng`).value);
 
-  if (!name || !city || !district || !startTime) {
+  if (!name || !city || !district || !mapQuery || !startTime) {
     alert("أكمل بيانات المشروع.");
     return;
   }
@@ -1427,6 +1507,7 @@ function saveProject(projectId) {
     name,
     city,
     district,
+    mapQuery,
     startTime,
     radiusMeters,
     lat,
