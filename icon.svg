@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ALYAMAMA">
+  <rect width="512" height="512" rx="96" fill="#06135c"/>
+  <path d="M142 198v42c0 83 55 139 138 139 54 0 101-25 126-66v79h-58v-151c-14 48-50 77-98 77-47 0-79-31-79-78v-42z" fill="#c6c9ce"/>
+  <circle cx="256" cy="168" r="72" fill="#39a852"/>
+  <path d="M122 402h268v34H122z" fill="#ffffff"/>
+</svg>
