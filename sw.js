@@ -1,4 +1,4 @@
-const CACHE_NAME = "alyamama-attendance-v5";
+const CACHE_NAME = "alyamama-attendance-v6";
 const ASSETS = [
   "./",
   "./index.html",
