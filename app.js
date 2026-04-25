@@ -363,13 +363,25 @@ function renderGoogleMap(location, title, query = "") {
 }
 
 function render() {
-  const root = document.getElementById("app");
-  root.innerHTML = `
-    ${renderTopbar()}
-    <main class="page">
-      ${session.pendingLocation ? renderLocationStep() : renderMain()}
-    </main>
-  `;
+  try {
+    const root = document.getElementById("app");
+    root.innerHTML = `
+      ${renderTopbar()}
+      <main class="page">
+        ${session.pendingLocation ? renderLocationStep() : renderMain()}
+      </main>
+    `;
+  } catch (error) {
+    document.body.innerHTML = `
+      <main class="page">
+        <section class="panel">
+          <h1>تعذر تشغيل الصفحة</h1>
+          <p>${escapeHtml(error.message || "حدث خطأ غير معروف.")}</p>
+          <button class="btn" onclick="location.reload()">إعادة المحاولة</button>
+        </section>
+      </main>
+    `;
+  }
 }
 
 function renderTopbar() {
@@ -1560,8 +1572,11 @@ document.addEventListener("DOMContentLoaded", render);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {
-      // The app still works if the browser blocks service workers on local files.
-    });
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) =>
+        Promise.all(registrations.map((registration) => registration.unregister())),
+      )
+      .catch(() => {});
   });
 }
